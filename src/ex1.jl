@@ -64,7 +64,7 @@ function run_model(input::EX1Input)
     @variable(m, D)
 
     # Expressions for the complementarity conditions
-    @expression(m, dLdx[p in P], a*(D0 - D) - a*x[p] - marginal_cost)
+    @expression(m, dLdx[p in P], πel - a*x[p] - marginal_cost)
     @expression(m, InverseDemandEq, a*(D0 - D) - πel)
     @expression(m, PowerBalanceEq, D - sum(x[_p] for _p in P))
 
@@ -99,6 +99,3 @@ function plot_prices(res::EX1Output)
 
     return p
 end
-
-
-
