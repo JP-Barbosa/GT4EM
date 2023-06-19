@@ -26,7 +26,7 @@ end
 
 struct EX1Output
     x::Array{Float64,1}
-    d::Float64
+    D::Float64
     πel::Float64
     number_producers::Int
     marginal_cost::Float64
@@ -35,7 +35,7 @@ struct EX1Output
 
     # Constructor from dictionary
     EX1Output(res::Dict, input::EX1Input) =
-         new(res["x"], res["d"], res["πel"], input.number_producers, input.marginal_cost, input.D0, input.a)
+         new(res["x"], res["D"], res["πel"], input.number_producers, input.marginal_cost, input.D0, input.a)
 end
 
 function run_model(input::EX1Input)
@@ -53,17 +53,17 @@ function run_model(input::EX1Input)
 
     @variable(m, x[P])
     @variable(m, πel)
-    @variable(m, d)
+    @variable(m, D)
 
     # Expressions for the complementarity conditions
-    @mapping(m, F1[p in P], a*(D0 - d) - a*x[p] - marginal_cost)
-    @mapping(m, F2, a*(D0 - d) - πel)
-    @mapping(m, F3, d - sum(x[_p] for _p in P))
+    @mapping(m, dLdx[p in P], a*(D0 - D) - a*x[p] - marginal_cost)
+    @mapping(m, InverseDemandEq, a*(D0 - D) - πel)
+    @mapping(m, PowerBalanceEq, D - sum(x[_p] for _p in P))
 
     # Complementarity conditions, e.g. 0 <= F1 ⟂ x >= 0
-    @complementarity(m, F1, x)
-    @complementarity(m, F2, d)
-    @complementarity(m, F3, πel)
+    @complementarity(m, dLdx, x)
+    @complementarity(m, InverseDemandEq, D)
+    @complementarity(m, PowerBalanceEq, πel)
 
 
     print(m)
@@ -73,7 +73,7 @@ function run_model(input::EX1Input)
     # Return dictionary with results
     res = Dict()
     merge!(res, Dict("x" => collect(result_value.(x))))
-    merge!(res, Dict("d" => result_value(d)))
+    merge!(res, Dict("D" => result_value(D)))
     merge!(res, Dict("πel" => result_value(πel)))
 
     return EX1Output(res, input)
@@ -84,7 +84,7 @@ function plot_energy(res::EX1Output)
     p = bar(res.x, title = "Production per Agent", label = "x",  xticks = (1:res.number_producers, 1:res.number_producers), yaxis = "Production")
     
     hline!([res.D0], label = "D0")
-    hline!([res.d], label = "d")
+    hline!([res.D], label = "D")
 
     return p
 end
