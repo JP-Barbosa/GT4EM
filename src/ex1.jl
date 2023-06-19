@@ -4,15 +4,21 @@
 #  mail@juliabarbosa.net
 # -------------------------------------------------- 
 
-using JuMP, Complementarity
+using JuMP
 using Plots
 
+using PATHSolver
+include("pathlic.jl")
+
+
+# -- Data Structures --
 struct EX1Input
-    """
-    Input parameters for the model 
-    """
+    
+    # Producer parameters   
     number_producers::Int
     marginal_cost::Float64
+
+    # Demand parameters
     D0::Float64
     a::Float64
 
@@ -38,6 +44,8 @@ struct EX1Output
          new(res["x"], res["D"], res["πel"], input.number_producers, input.marginal_cost, input.D0, input.a)
 end
 
+
+# -- Model --
 function run_model(input::EX1Input)
 
     number_producers = input.number_producers
@@ -49,36 +57,32 @@ function run_model(input::EX1Input)
     P = 1:number_producers
 
     # Model
-    m = MCPModel()
+    m = Model(PATHSolver.Optimizer)
 
     @variable(m, x[P])
     @variable(m, πel)
     @variable(m, D)
 
     # Expressions for the complementarity conditions
-    @mapping(m, dLdx[p in P], a*(D0 - D) - a*x[p] - marginal_cost)
-    @mapping(m, InverseDemandEq, a*(D0 - D) - πel)
-    @mapping(m, PowerBalanceEq, D - sum(x[_p] for _p in P))
+    @expression(m, dLdx[p in P], a*(D0 - D) - a*x[p] - marginal_cost)
+    @expression(m, InverseDemandEq, a*(D0 - D) - πel)
+    @expression(m, PowerBalanceEq, D - sum(x[_p] for _p in P))
 
-    # Complementarity conditions, e.g. 0 <= F1 ⟂ x >= 0
-    @complementarity(m, dLdx, x)
-    @complementarity(m, InverseDemandEq, D)
-    @complementarity(m, PowerBalanceEq, πel)
-
+    # Complementarity conditions:
+    @constraint(m, dLdx ⟂ x)
+    @constraint(m, InverseDemandEq ⟂ D)
+    @constraint(m, PowerBalanceEq ⟂ πel)
 
     print(m)
-    # Solve
-    status = solveMCP(m, output="no")
+    status = optimize!(m)
 
-    # Return dictionary with results
-    res = Dict()
-    merge!(res, Dict("x" => collect(result_value.(x))))
-    merge!(res, Dict("D" => result_value(D)))
-    merge!(res, Dict("πel" => result_value(πel)))
-
+    res = Dict("x" => value.(x).data, "D" => value(D), "πel" => value(πel))
+    
     return EX1Output(res, input)
 end
 
+
+# -- Plotting --
 function plot_energy(res::EX1Output)
 
     p = bar(res.x, title = "Production per Agent", label = "x",  xticks = (1:res.number_producers, 1:res.number_producers), yaxis = "Production")
