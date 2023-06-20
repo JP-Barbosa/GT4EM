@@ -151,7 +151,7 @@ function plot_prices(data::EX3Output)
 
    bar(data.input.marginal_cost, label = "Marginal Cost")
    mark_leader(data)
-   hline([data.πel], label = "πel")
+   hline!([data.πel], label = "πel")
 
 end
 
